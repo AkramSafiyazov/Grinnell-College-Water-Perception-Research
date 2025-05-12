@@ -1,0 +1,169 @@
+---
+title: "Grinnell College Students' Water Perception Study"
+author: "Akram Safiyazov, Riku Shiine, Yujin Soga"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+date: "May 16, 2025"
+geometry: margin=0.75in
+fontsize: 11pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+```
+
+```{r}
+water <- read.csv("Dataset_Water_Perception.csv", quote = "", stringsAsFactors = TRUE, header = TRUE, col.names = c("ID", "Start_Time", "End_Time", "Email", "Name", "Year", "US_Status", "Sex", "Preference", "Spencer", "Fountain", "Confidence"), encoding = "utf-8")
+```
+
+```{r}
+water <- water %>%
+  select(-ID, -Start_Time, -End_Time, -Email, -Name) %>%
+  filter(Sex == "Male" | Sex == "Female") %>% # Exclude other Sex variable values for the lack of                                                          # representativeness of these other values
+  mutate(Year = factor(Year, levels = c("Freshman", "Sophomore", "Junior", "Senior"))) %>% # Rank seniority
+  mutate(Is_Correct = ifelse(Spencer == "B", TRUE, FALSE)) %>% # Sample B was the Spencer Grill water
+  mutate(Prefers_Spencer = ifelse(Preference == "B", TRUE, FALSE))
+```
+
+# Background
+
+It is a well-known and arguably universally agreed upon fact that the tap and fountain water in Grinnell College, Iowas does not taste good. For a long time, student body was being used to refill their water bottles at the Spencer Grill until the new health regulations were enforced prohibiting this practice. This study aims to explore whether Grinnell College students actually prefer the Spencer water over fountain, whether they can differentiate between two, and what factors may affect this.
+
+In particular, there are four research questions. Firstly, we would like to know whether there is an association between students' preference and Spencer Grill water identification. The other three ask whether each of students' sex, seniority and US status affects their ability to differentiate between Spencer and fountain water.
+
+The first null hypothesis is that there is no association between water preference and Spencer Grill water identification. The three other null hypotheses are that the proportions of students correctly identifying water samples is equal between each groups of Sex, Year, US Status variables.
+
+# Methods
+
+To answer the research questions, we designed a blind-tasting study which consisted of approaching random students, offering two water samples in clear plastic cups labelled A and B, and filling in a Microsoft Form. The form consisted of three sections: preliminary data collection of categorical variables Year (Freshman, Sophomore, etc.), Sex (Male, Female, Non-Binary, Prefer not to say), US Status (Domestic, International); water sample Preference variable; water samples Identification and Identification Confidence variables. 
+
+The students were not given any information on the origin of two water samples before proceeding to the last identification section to exclude any confirmation or prior-knowledge biases. The alphabetical ordering of samples (A and B) also did not seem to instill any order of tasting bias - students seem to alternate between tasting A and B first.
+
+To further decrease any confounding effects, two water samples were stored in similar 3 liter water bottles for the same period of time (3 hours) until reaching thermal equilibrium. To randomize our sampling and exclude convenience bias, we carried out our study on Sunday ("everybody locks-in") night and aimed to collect around 12 samples from each Noyce, HSSC, JRC, Burling, all floors, with slight variations. Students did not hesitate to participate in the study, eliminating voluntary response bias.
+
+We took health and environmental concerns into account and made sure to use single use clean plastic cups for individual observations and disposed of all them into recycling bins. We also acknowledge that our sample size for non-binary people was too small to include or retrieve any meaningful analysis.
+
+We collected 53 observations of 6 unique variables.
+
+# Results
+
+## Representativeness
+
+```{r, echo=FALSE, out.width='50%'}
+plot_prop_by_year <- ggplot(water, aes(x = Year)) +
+  geom_bar(aes(y = after_stat(prop), group = 1), fill = "#00BFC4") +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(title = "Figure 1 (a). Proportion of each Year.", y = "Proportion", x = "Year") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+  )
+```
+
+
+```{r}
+plot_prop_by_year_sex_status <- ggplot(water, aes(x = Sex, fill = US_Status)) +
+  geom_bar(position = "fill") +
+  facet_wrap(~ Year)+
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Figure 1 (b). Proportion of US Status per Sex by Year.", x="", y = "Proportion", fill = "US Status") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "bottom"
+  )
+```
+
+The Figure 1 (a) below displays the proportions of each year in our sample. It shows that the distribution across years is relatively balanced, suggesting that we successfully collected our samples randomly. The Figure 1 (b) illustrates the proportions of U.S. status per sex faceted by class year in our samples. The proportion of international students vary around 20-25% which agrees with the official statistics reported by the Grinnell College administration. These plots suggest that we have collected representative random sample to analyze.
+
+```{r, fig.width=12, fig.height=5, dpi=500}
+plot_prop_by_year + plot_prop_by_year_sex_status 
+```
+
+
+## Preference - Spencer Association
+
+```{r, results="hide"}
+chisq.test(with(water, table(Preference, Spencer)))
+```
+Performing $\chi^2$ test of independence on the Preference (A, B) and Spencer Water Identification (A, B) variables, produces p-value of 7.63-08 suggesting overwhelming evidence in support of the alternate hypothesis. Thus, we reject the null hypothesis and conclude that students preference and Spencer Water Identification variables are not independent. This means that students preferring one sample also tend to conclude that their preferred sample is the Spencer water sample. 
+
+## Sex Hypothesis
+
+```{r, results="hide"}
+ANOVA_Is_Correct_Year <- aov(data = water, Is_Correct ~ Sex)
+
+summary(ANOVA_Is_Correct_Year)
+
+TukeyHSD(ANOVA_Is_Correct_Year)
+```
+
+Performing ANOVA test between Identification Correctness and Sex, we obtain the p-value of 0.895, and conclude that there is no evidence in support for the alternate hypothesis. We fail to reject the null hypothesis and there is no difference of proportions who correctly identified water between male and female students. 
+
+## Year and US Status Hypotheses
+
+```{r}
+plot_year_correct <- ggplot(water, aes(Year, fill=Is_Correct)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_discrete(labels = c("TRUE" = "Correct", "FALSE" = "Incorrect")) +
+  labs(title = "Figure 2 (a). Proportion of Correct Answers per Year.", x="", y = "Proportion", fill = "Correctness") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "bottom"
+  )
+```
+
+```{r}
+plot_status_correct <- ggplot(water, aes(US_Status, fill= Is_Correct)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_discrete(labels = c("TRUE" = "Correct", "FALSE" = "Incorrect")) +
+  labs(title = "Figure 2 (b). Proportion of Correct Answers per US Status.", x="", y = "Proportion", fill = "Correctness") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "bottom"
+  )
+```
+
+The Figure 2 (a) below displays the proportions of correct answers by class year in our sample. It appears that as class year increases, the proportion of students able to correctly differentiate water decreases. This trend might be explained by longer exposure and adaptation to the water taste from the fountains at Grinnell College.
+
+```{r, results="hide"}
+ANOVA_Is_Correct_Year <- aov(data = water, Is_Correct ~ Year)
+
+summary(ANOVA_Is_Correct_Year)
+
+TukeyHSD(ANOVA_Is_Correct_Year)
+```
+
+To further explore this we performed an ANOVA test. However, according to the ANOVA test with a value of 0.287, we fail to reject the null hypothesis that the difference in proportions of correct answers is zero across all year groups. Thus, there is no statistically significant difference in correctly distinguishing water across the seniority status. Performing post-hoc Tukey honest significance test, we discovered that the adjacent p-value of Freshman-Senior pair is 0.274 and is the lowest. This may suggest that with the higher sample size, this difference could become more statistically significant justifying our plot below.
+
+```{r, fig.width=12, fig.height=5, dpi=500}
+plot_year_correct + plot_status_correct
+```
+
+The Figure 2 (b) above shows the proportion of correct answers by U.S. status. It suggests that international students are more accurate in identifying water correctly compared to U.S. students, possibly due to their broader experience with different types of water.
+
+Performing ANOVA and TukeyHSD tests we conclude that we are 95% confident the true difference in proportions lies between 0.17 and 0.77 and with a p-value of 0.00259, there exists a substantial evidence in support of alternate hypothesis. Thus, we reject the null hypothesis and there does exist a statistically significant difference in the proportions of correct answers between domestic and international students. In fact, international students are more likely to correctly differentiate between Spencer and fountain water.
+
+```{r, results="hide"}
+ANOVA_Is_Correct_US_Status <- aov(data = water, Is_Correct ~ US_Status)
+
+summary(ANOVA_Is_Correct_US_Status)
+
+TukeyHSD(ANOVA_Is_Correct_US_Status)
+```
+
+# Discussion
+
+In conclusion, students preference and Spencer water identification water are associated variables, meaning students do think they prefer Spencer Grill water even if they misidentify it. There exists no statistically significant difference in the ability to differentiate between water samples between Sex and Year groups, although higher sample size may change the latter conclusion. There exists a statistically significant difference in the proportions of students by US Status able to distinguish water samples, moreover, international students are better at identifying water than domestic ones. The confidence variable did not find the application in this research and may be used to generate insights in further studies.
+
+# Notes
+
+The dataset and source code for this paper could be found at https://github.com/AkramSafiyazov/Grinnell-College-Water-Perception-Research
